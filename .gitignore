@@ -7,18 +7,58 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
 
-# Editor directories and files
+# IDE specific
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.sublime-project
+*.sublime-workspace
+
+# Frontend (Node.js/Vite)
+node_modules
+dist
+dist-ssr
+*.local
+.npm
+.eslintcache
+
+# Backend (Java/Spring Boot/Gradle)
+src-backend/.gradle
+src-backend/build
+src-backend/bin
+src-backend/out
+src-backend/.settings
+src-backend/.classpath
+src-backend/.project
+src-backend/.nb-gradle
+src-backend/target
+src-backend/.factorypath
+
+# Rust/Tauri
+src-tauri/target
+src-tauri/binaries/*
+!src-tauri/binaries/.gitkeep
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+app.db
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Trae specific
+.trae/
