@@ -26,8 +26,24 @@
 					<div class="flex items-center gap-2">
 						<button
 							@click="createNewConnection"
-							class="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium shadow-sm hover:opacity-90 transition-opacity">
+							:disabled="isLoadingTestApi"
+							class="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
 							<svg
+								v-if="isLoadingTestApi"
+								class="w-4 h-4 animate-spin"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2">
+								<circle
+									cx="12"
+									cy="12"
+									r="10"
+									stroke-dasharray="31.4"
+									stroke-dashoffset="10"></circle>
+							</svg>
+							<svg
+								v-else
 								class="w-4 h-4"
 								viewBox="0 0 24 24"
 								fill="none"
@@ -36,7 +52,7 @@
 								<line x1="12" y1="5" x2="12" y2="19"></line>
 								<line x1="5" y1="12" x2="19" y2="12"></line>
 							</svg>
-							新建连接
+							{{ isLoadingTestApi ? "正在连接..." : "新建连接" }}
 						</button>
 					</div>
 				</div>
@@ -556,8 +572,74 @@
 				</div>
 			</div>
 		</div>
+
+		<!-- API Call Notification Toast -->
+		<Transition name="fade">
+			<div
+				v-if="testApiResponse"
+				class="fixed bottom-12 right-12 z-50 flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md transition-all duration-300"
+				:class="
+					testApiResponse.includes('失败')
+						? 'bg-destructive/15 border-destructive/20 text-destructive'
+						: 'bg-primary/10 border-primary/20 text-primary'
+				">
+				<div class="flex-shrink-0">
+					<svg
+						v-if="testApiResponse.includes('失败')"
+						class="w-5 h-5"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2">
+						<circle cx="12" cy="12" r="10"></circle>
+						<line x1="12" y1="8" x2="12" y2="12"></line>
+						<line x1="12" y1="16" x2="12.01" y2="16"></line>
+					</svg>
+					<svg
+						v-else
+						class="w-5 h-5"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2">
+						<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+						<polyline points="22 4 12 14.01 9 11.01"></polyline>
+					</svg>
+				</div>
+				<div class="font-medium text-sm">
+					{{ testApiResponse }}
+				</div>
+				<button
+					@click="testApiResponse = null"
+					class="ml-2 p-1 hover:bg-black/5 rounded-full transition-colors">
+					<svg
+						class="w-3.5 h-3.5 opacity-60"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2">
+						<line x1="18" y1="6" x2="6" y2="18"></line>
+						<line x1="6" y1="6" x2="18" y2="18"></line>
+					</svg>
+				</button>
+			</div>
+		</Transition>
 	</div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+	transition:
+		opacity 0.3s ease,
+		transform 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+	opacity: 0;
+	transform: translateY(10px);
+}
+</style>
 
 <script setup lang="ts">
 import { ref, computed, reactive, nextTick } from "vue";

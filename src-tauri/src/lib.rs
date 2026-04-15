@@ -38,14 +38,26 @@ fn stop_backend(app: tauri::AppHandle) -> Result<String, String> {
 
 #[tauri::command]
 async fn call_test_api() -> Result<String, String> {
+    println!("Rust Backend: Attempting to call test API at http://localhost:8080/api/hello");
     let response = reqwest::get("http://localhost:8080/api/hello")
         .await
-        .map_err(|e| format!("Failed to call test API: {}", e))?;
+        .map_err(|e| {
+            let err_msg = format!("Failed to call test API: {}", e);
+            eprintln!("Rust Backend Error: {}", err_msg);
+            err_msg
+        })?;
+    
+    println!("Rust Backend: Received response from test API. Status: {}", response.status());
     
     let text = response.text()
         .await
-        .map_err(|e| format!("Failed to read response text: {}", e))?;
+        .map_err(|e| {
+            let err_msg = format!("Failed to read response text: {}", e);
+            eprintln!("Rust Backend Error: {}", err_msg);
+            err_msg
+        })?;
     
+    println!("Rust Backend: API Response body: {}", text);
     Ok(text)
 }
 
