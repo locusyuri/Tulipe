@@ -31,17 +31,22 @@
 
     <!-- Main Workspace Area (Three-Column Layout) -->
     <main class="flex-1 flex overflow-hidden">
-      <!-- Left Column: Database List -->
-      <aside class="w-64 border-r border-border flex flex-col bg-card/20">
-        <div class="p-3 font-semibold text-xs text-muted-foreground uppercase tracking-wider border-b border-border">
-          Databases
+      <!-- Left Column: Database Icon Bar -->
+      <aside class="w-[72px] border-r border-border flex flex-col bg-card/20">
+        <div class="p-2 border-b border-border flex items-center justify-center">
+          <span class="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">DB</span>
         </div>
-        <div class="flex-1 overflow-y-auto p-2 space-y-1">
-          <div v-for="db in databases" :key="db" class="flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent group cursor-pointer">
-            <svg class="w-4 h-4 text-muted-foreground group-hover:text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div class="flex-1 overflow-y-auto p-2 space-y-1.5">
+          <div 
+            v-for="db in databases" 
+            :key="db" 
+            :title="db"
+            class="flex flex-col items-center justify-center py-2 px-1 rounded-lg hover:bg-accent group cursor-pointer transition-colors"
+          >
+            <svg class="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
             </svg>
-            <span class="truncate">{{ db }}</span>
+            <span class="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors truncate w-full text-center mt-1">{{ db.length > 5 ? db.substring(0, 5) + '..' : db }}</span>
           </div>
         </div>
       </aside>

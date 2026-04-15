@@ -36,13 +36,26 @@ fn stop_backend(app: tauri::AppHandle) -> Result<String, String> {
     }
 }
 
+#[tauri::command]
+async fn call_test_api() -> Result<String, String> {
+    let response = reqwest::get("http://localhost:8080/api/hello")
+        .await
+        .map_err(|e| format!("Failed to call test API: {}", e))?;
+    
+    let text = response.text()
+        .await
+        .map_err(|e| format!("Failed to read response text: {}", e))?;
+    
+    Ok(text)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(BackendState(Mutex::new(None)))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![start_backend, stop_backend])
+        .invoke_handler(tauri::generate_handler![start_backend, stop_backend, call_test_api])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
