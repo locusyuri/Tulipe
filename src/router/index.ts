@@ -13,7 +13,7 @@ const router = createRouter({
     {
       path: '/main',
       name: 'main',
-      component: () => import('../pages/MainWorkspace.vue')
+      component: () => import('../pages/MainWorkspace/MainWorkspace.vue')
     },
     {
       path: '/settings',
