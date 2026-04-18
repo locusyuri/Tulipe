@@ -47,6 +47,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test") // Spring Boot Starter Test, 用于测试
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5") // Kotlin Test JUnit5, 用于测试
     testRuntimeOnly("org.junit.platform:junit-platform-launcher") // JUnit Platform Launcher, 用于运行测试
+    runtimeOnly("org.xerial:sqlite-jdbc:3.46.1.3") // SQLite JDBC Driver
     runtimeOnly("com.mysql:mysql-connector-j") // MySQL JDBC Driver
     runtimeOnly("org.postgresql:postgresql") // PostgreSQL JDBC Driver
 }

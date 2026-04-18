@@ -1,6 +1,8 @@
 use crate::backend::state::{BackendProcess, BackendState};
 use reqwest::Client;
+use std::fs;
 use std::net::TcpListener;
+use std::path::PathBuf;
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::Manager;
@@ -19,6 +21,8 @@ pub async fn start_backend(app: tauri::AppHandle) -> Result<String, String> {
 
     // 先向系统申请一个当前空闲的本地端口，避免固定端口冲突。
     let port = allocate_free_port()?;
+    // 由 Rust 统一管理 SQLite 文件路径，确保前后端访问同一数据库文件。
+    let sqlite_path = resolve_sqlite_path(&app)?;
 
     // 通过 Tauri sidecar 启动 SpringBoot Native 可执行文件。
     let sidecar = app
@@ -30,6 +34,7 @@ pub async fn start_backend(app: tauri::AppHandle) -> Result<String, String> {
         .args([
             format!("--server.port={}", port),
             "--server.address=127.0.0.1".to_string(),
+            format!("--app.sqlite.path={}", sqlite_path),
         ])
         .spawn()
         .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
@@ -69,6 +74,21 @@ fn allocate_free_port() -> Result<u16, String> {
         .local_addr()
         .map(|addr| addr.port())
         .map_err(|e| format!("Failed to read allocated port: {}", e))
+}
+
+fn resolve_sqlite_path(app: &tauri::AppHandle) -> Result<String, String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to resolve app data directory: {}", e))?;
+
+    fs::create_dir_all(&app_data_dir)
+        .map_err(|e| format!("Failed to create app data directory: {}", e))?;
+
+    let db_path: PathBuf = app_data_dir.join("tulipe.db");
+
+    // 统一使用正斜杠，兼容 JDBC URL 在 Windows 下的路径解析。
+    Ok(db_path.to_string_lossy().replace('\\', "/"))
 }
 
 // 启动后轮询根路径，任意 HTTP 响应都视为后端已就绪。

@@ -9,7 +9,7 @@ pub fn run() {
         .manage(BackendState(Mutex::new(None)))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
-        //! 注册后端代理命令，使前端能够通过 invoke 调用 Rust 层的代理函数。
+        // 注册后端代理命令，使前端能够通过 invoke 调用 Rust 层的代理函数。
         .invoke_handler(tauri::generate_handler![start_backend, stop_backend, proxy_backend_request])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

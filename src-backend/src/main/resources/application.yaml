@@ -1,3 +1,21 @@
 spring:
   application:
     name: TulipeBackend
+  datasource:
+    # Rust 启动 sidecar 时会注入 app.sqlite.path，SpringBoot 使用同一路径连接。
+    url: ${SPRING_DATASOURCE_URL:jdbc:sqlite:${app.sqlite.path}}
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      # SQLite 是文件数据库，多进程/多连接下建议小连接池。
+      maximum-pool-size: 1
+      minimum-idle: 1
+      connection-timeout: 5000
+      initialization-fail-timeout: 10000
+  sql:
+    init:
+      mode: always
+
+app:
+  sqlite:
+    # 兜底路径：若未从 Rust 注入，则写入工作目录 data 下。
+    path: ${APP_SQLITE_PATH:./data/tulipe.db}
