@@ -53,9 +53,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, nextTick } from "vue";
+import { ref, computed, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { invoke } from "@tauri-apps/api/core";
+import { requestBackendGetJson } from "../../api/backendProxy";
 
 import Header from "./components/Header.vue";
 import Content from "./components/Content.vue";
@@ -208,9 +209,10 @@ async function createNewConnection() {
 	testApiResponse.value = null;
 	try {
 		await invoke("start_backend");
-		const response = await invoke<string>("call_test_api");
-		const data = JSON.parse(response);
-		testApiResponse.value = data.message || response;
+		const data = await requestBackendGetJson<{ message?: string }>(
+			"/api/hello",
+		);
+		testApiResponse.value = data.message || "连接成功";
 	} catch (error) {
 		console.error("Failed to connect to backend:", error);
 		testApiResponse.value = `连接失败: ${error}`;

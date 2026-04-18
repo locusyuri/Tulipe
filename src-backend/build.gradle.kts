@@ -6,10 +6,13 @@ plugins {
     id("org.graalvm.buildtools.native") version "0.10.1"
 }
 
+/**
+ * 配置 GraalVM Native
+ */
 graalvmNative {
     binaries {
         named("main") {
-            imageName.set("src-backend")
+            imageName.set("TulipeBackend")
             mainClass.set("org.fleur.srcbackend.SrcBackendApplicationKt")
             fallback.set(false)
             buildArgs.add("-H:+ReportExceptionStackTraces")
@@ -21,11 +24,11 @@ graalvmNative {
 
 group = "org.fleur"
 version = "0.0.1-SNAPSHOT"
-description = "src-backend"
+description = "TulipeBackend"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(19)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
@@ -33,13 +36,19 @@ repositories {
     mavenCentral()
 }
 
+/**
+ * 依赖项
+ */
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter")
-    implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    implementation("org.springframework.boot:spring-boot-starter") // Spring Boot Starter, 用于启动
+    implementation("org.springframework.boot:spring-boot-starter-web") // Spring Boot Starter Web, 用于 Web 开发
+    implementation("org.springframework.boot:spring-boot-starter-jdbc") // Spring JDBC, 用于 JdbcTemplate
+    implementation("org.jetbrains.kotlin:kotlin-reflect") // Kotlin Reflect, 用于反射
+    testImplementation("org.springframework.boot:spring-boot-starter-test") // Spring Boot Starter Test, 用于测试
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5") // Kotlin Test JUnit5, 用于测试
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher") // JUnit Platform Launcher, 用于运行测试
+    runtimeOnly("com.mysql:mysql-connector-j") // MySQL JDBC Driver
+    runtimeOnly("org.postgresql:postgresql") // PostgreSQL JDBC Driver
 }
 
 kotlin {

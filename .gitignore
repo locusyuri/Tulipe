@@ -33,21 +33,34 @@ dist-ssr
 .eslintcache
 
 # Backend (Java/Spring Boot/Gradle)
-src-backend/.gradle
-src-backend/build
-src-backend/bin
-src-backend/out
+src-backend/.gradle/
+src-backend/.kotlin/
+src-backend/build/
+src-backend/bin/
+src-backend/out/
 src-backend/.settings
 src-backend/.classpath
 src-backend/.project
 src-backend/.nb-gradle
 src-backend/target
 src-backend/.factorypath
+src-backend/.attach_pid*
+src-backend/hs_err_pid*
+src-backend/replay_pid*
+
+# Gradle and JVM caches/logs (project-local)
+.gradle/
+**/.gradle/
+**/build/
+**/out/
+**/.kotlin/
+*.hprof
 
 # Rust/Tauri
 src-tauri/target
 src-tauri/binaries/*
 !src-tauri/binaries/.gitkeep
+src-tauri/gen/schemas/
 
 # Local database files
 *.db
