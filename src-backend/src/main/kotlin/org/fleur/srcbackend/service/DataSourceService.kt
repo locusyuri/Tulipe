@@ -1,5 +1,6 @@
 package org.fleur.srcbackend.service
 
+import org.fleur.srcbackend.pojo.dto.JdbcConnectionConfig
 import org.fleur.srcbackend.pojo.dto.ConnectionRequest
 import org.fleur.srcbackend.pojo.enums.DbType
 import org.springframework.jdbc.core.JdbcTemplate
@@ -10,15 +11,24 @@ import org.springframework.stereotype.Service
 class DataSourceService {
 
     fun connect(request: ConnectionRequest): Map<String, Any> {
-        // 把前端入参统一解析成枚举，避免字符串分支散落在业务代码里。
-        val dbType = DbType.from(request.dbType)
-        val jdbcUrl = dbType.buildJdbcUrl(request.host, request.port, request.database)
+        // 外层 dbType 与内层 config.type 必须一致，避免请求语义冲突。
+        val outerDbType = DbType.from(request.dbType)
+        val innerDbType = DbType.from(request.config.type)
+        require(outerDbType == innerDbType) {
+            "dbType 与 config.type 不一致: ${request.dbType} / ${request.config.type}"
+        }
+
+        // 目前只支持 JDBC 子类型（MySQL/PostgreSQL），其他类型后续扩展。
+        val config = request.config as? JdbcConnectionConfig
+            ?: throw IllegalArgumentException("当前仅支持 JDBC 连接配置")
+
+        val jdbcUrl = outerDbType.buildJdbcUrl(config.host, config.port, config.database)
 
         val dataSource = DriverManagerDataSource().apply {
-            setDriverClassName(dbType.driverClassName)
+            setDriverClassName(outerDbType.driverClassName)
             url = jdbcUrl
-            username = request.username
-            password = request.password
+            username = config.username
+            password = config.password
         }
 
         val jdbcTemplate = JdbcTemplate(dataSource)
@@ -27,7 +37,9 @@ class DataSourceService {
 
         return mapOf(
             "connected" to (ok == 1),
-            "dbType" to dbType.code,
+            "dbType" to outerDbType.code,
+            "name" to request.name,
+            "group" to request.group,
             "url" to jdbcUrl,
         )
     }
