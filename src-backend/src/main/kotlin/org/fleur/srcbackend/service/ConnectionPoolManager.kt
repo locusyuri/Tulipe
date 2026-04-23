@@ -3,6 +3,7 @@ package org.fleur.srcbackend.service
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import jakarta.annotation.PreDestroy
+import org.fleur.srcbackend.config.ConnectionPoolProperties
 import org.fleur.srcbackend.pojo.entity.Connection
 import org.fleur.srcbackend.pojo.entity.JdbcConnectionConfig
 import org.fleur.srcbackend.pojo.entity.MysqlConnectionConfig
@@ -13,7 +14,9 @@ import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 
 @Component
-class ConnectionPoolManager {
+class ConnectionPoolManager(
+    private val poolProperties: ConnectionPoolProperties,
+) {
 
     private val dataSourceCache = ConcurrentHashMap<String, HikariDataSource>()
 
@@ -55,14 +58,14 @@ class ConnectionPoolManager {
             this.jdbcUrl = jdbcUrl
             username = config.username
             password = config.password
-            maximumPoolSize = 10
-            minimumIdle = 1
-            connectionTimeout = 5_000
-            validationTimeout = 2_000
-            idleTimeout = 600_000
-            maxLifetime = 1_800_000
+            maximumPoolSize = poolProperties.maximumPoolSize
+            minimumIdle = poolProperties.minimumIdle
+            connectionTimeout = poolProperties.connectionTimeout
+            validationTimeout = poolProperties.validationTimeout
+            idleTimeout = poolProperties.idleTimeout
+            maxLifetime = poolProperties.maxLifetime
             poolName = "conn-pool-${dbType.code}-${shortDigest(jdbcUrl)}"
-            connectionTestQuery = "SELECT 1"
+            connectionTestQuery = poolProperties.connectionTestQuery
         }
 
         return HikariDataSource(hikariConfig)

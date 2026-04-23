@@ -19,3 +19,12 @@ app:
   sqlite:
     # 兜底路径：若未从 Rust 注入，则写入工作目录 data 下。
     path: ${APP_SQLITE_PATH:./data/tulipe.db}
+  connection-pool:
+    # 下面的配置用于动态连接池（用户自定义外部数据库连接），与 spring.datasource.hikari 分离。
+    maximum-pool-size: 10
+    minimum-idle: 1
+    connection-timeout: 5000
+    validation-timeout: 2000
+    idle-timeout: 600000
+    max-lifetime: 1800000
+    connection-test-query: SELECT 1
