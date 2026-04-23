@@ -17,10 +17,10 @@ class DataSourceController(
 ) {
 
     @PostMapping("/connect")
-    // 该接口仅用于测试连接，成功时不返回业务数据。
-    fun connect(@RequestBody request: Connection): TulipeResult<Nothing> {
-        dataSourceService.connect(request)
-        return TulipeResult.success()
+    // 该接口用于测试连接，成功后会返回并持久化 connectionId。
+    fun connect(@RequestBody request: Connection): TulipeResult<Long> {
+        val connectionId = dataSourceService.connect(request)
+        return TulipeResult.success(connectionId)
     }
 
     @PostMapping("/execute")
