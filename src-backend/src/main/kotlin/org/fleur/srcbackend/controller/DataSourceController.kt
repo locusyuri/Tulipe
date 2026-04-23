@@ -1,5 +1,7 @@
 package org.fleur.srcbackend.controller
 
+import org.fleur.srcbackend.pojo.dto.ExecuteSqlRequest
+import org.fleur.srcbackend.pojo.vo.SqlExecutionResult
 import org.fleur.srcbackend.pojo.entity.Connection
 import org.fleur.srcbackend.result.TulipeResult
 import org.fleur.srcbackend.service.DataSourceService
@@ -19,5 +21,12 @@ class DataSourceController(
     fun connect(@RequestBody request: Connection): TulipeResult<Nothing> {
         dataSourceService.connect(request)
         return TulipeResult.success()
+    }
+
+    @PostMapping("/execute")
+    // 执行指定连接上的单条 SQL，具体异常统一交给全局异常处理器。
+    fun executeSql(@RequestBody request: ExecuteSqlRequest): TulipeResult<SqlExecutionResult> {
+        val result = dataSourceService.executeSql(request)
+        return TulipeResult.success(result)
     }
 }
