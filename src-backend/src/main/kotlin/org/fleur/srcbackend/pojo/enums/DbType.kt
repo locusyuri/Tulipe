@@ -7,10 +7,14 @@ enum class DbType(
     MYSQL("mysql", "com.mysql.cj.jdbc.Driver"),
     POSTGRESQL("postgresql", "org.postgresql.Driver");
 
-    fun buildJdbcUrl(host: String, port: Int, database: String): String {
+    // MySQL 可以直接连到 server；PostgreSQL 则需要明确指定 database。
+    fun buildJdbcUrl(host: String, port: Int, database: String? = null): String {
         return when (this) {
-            MYSQL -> "jdbc:mysql://$host:$port/$database"
-            POSTGRESQL -> "jdbc:postgresql://$host:$port/$database"
+            MYSQL -> "jdbc:mysql://$host:$port/"
+            POSTGRESQL -> {
+                require(!database.isNullOrBlank()) { "PostgreSQL 连接必须提供 database" }
+                "jdbc:postgresql://$host:$port/$database"
+            }
         }
     }
 
