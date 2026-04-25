@@ -6,6 +6,11 @@ plugins {
     id("org.graalvm.buildtools.native") version "0.10.1"
 }
 
+// Native 相关任务执行时不引入 SpringDoc，避免 GraalVM 打包阶段增加额外处理成本。
+val isNativeBuild = gradle.startParameter.taskNames.any { taskName ->
+    taskName.contains("native", ignoreCase = true)
+}
+
 /**
  * 配置 GraalVM Native
  */
@@ -44,6 +49,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web") // Spring Boot Starter Web, 用于 Web 开发
     implementation("org.springframework.boot:spring-boot-starter-jdbc") // Spring JDBC, 用于 JdbcTemplate
     implementation("org.jetbrains.kotlin:kotlin-reflect") // Kotlin Reflect, 用于反射
+    if (!isNativeBuild) {
+        implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0") // JVM 调试时使用 Swagger/OpenAPI
+    }
     testImplementation("org.springframework.boot:spring-boot-starter-test") // Spring Boot Starter Test, 用于测试
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5") // Kotlin Test JUnit5, 用于测试
     testRuntimeOnly("org.junit.platform:junit-platform-launcher") // JUnit Platform Launcher, 用于运行测试

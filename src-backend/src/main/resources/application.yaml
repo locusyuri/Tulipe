@@ -15,6 +15,12 @@ spring:
     init:
       mode: always
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
 app:
   sqlite:
     # 兜底路径：若未从 Rust 注入，则写入工作目录 data 下。

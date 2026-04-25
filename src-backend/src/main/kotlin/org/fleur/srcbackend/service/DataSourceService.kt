@@ -1,7 +1,15 @@
 package org.fleur.srcbackend.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.fleur.srcbackend.pojo.dto.DdlColumn
 import org.fleur.srcbackend.pojo.dto.ExecuteSqlRequest
+import org.fleur.srcbackend.pojo.dto.SqlFilter
+import org.fleur.srcbackend.pojo.dto.SqlOrderBy
+import org.fleur.srcbackend.pojo.dto.StructuredDdlRequest
+import org.fleur.srcbackend.pojo.dto.StructuredDeleteRequest
+import org.fleur.srcbackend.pojo.dto.StructuredInsertRequest
+import org.fleur.srcbackend.pojo.dto.StructuredQueryRequest
+import org.fleur.srcbackend.pojo.dto.StructuredUpdateRequest
 import org.fleur.srcbackend.pojo.entity.Connection
 import org.fleur.srcbackend.pojo.entity.ConnectionProfile
 import org.fleur.srcbackend.pojo.entity.JdbcConnectionConfig
@@ -14,6 +22,7 @@ import org.fleur.srcbackend.pojo.vo.SqlQueryResult
 import org.fleur.srcbackend.repository.ConnectionProfileRepository
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
+import java.util.Locale
 
 @Service
 class DataSourceService(
@@ -40,36 +49,97 @@ class DataSourceService(
         return connectionProfileRepository.save(profile)
     }
 
-    fun executeQuery(request: ExecuteSqlRequest): SqlQueryResult {
-        val sql = normalizeSql(request.sql)
-        requireSqlType(sql, setOf("SELECT"))
+    fun executeQuery(request: StructuredQueryRequest): SqlQueryResult {
+        require(request.page >= 1) { "page 必须 >= 1" }
+        require(request.pageSize in 1..1000) { "pageSize 必须在 1..1000 之间" }
+
+        val table = sanitizeTableName(request.table)
+        val selectedColumns = if (request.columns.isEmpty()) {
+            "*"
+        } else {
+            request.columns.joinToString(", ") { sanitizeColumnName(it) }
+        }
+
+        val whereClause = buildWhereClause(request.filters)
+        val orderClause = buildOrderByClause(request.orderBy)
+        val offset = (request.page - 1) * request.pageSize
+
+        val sql = buildString {
+            append("SELECT ")
+            append(selectedColumns)
+            append(" FROM ")
+            append(table)
+            append(whereClause.sql)
+            append(orderClause)
+            append(" LIMIT ? OFFSET ?")
+        }
+
+        val args = whereClause.args.toMutableList().apply {
+            add(request.pageSize)
+            add(offset)
+        }
 
         val jdbcTemplate = loadJdbcTemplate(request.connectionId)
-        val rows = jdbcTemplate.queryForList(sql)
+        val rows = jdbcTemplate.queryForList(sql, *args.toTypedArray())
         return SqlQueryResult(rows = rows)
     }
 
-    fun executeUpdate(request: ExecuteSqlRequest): SqlMutationResult {
-        val sql = normalizeSql(request.sql)
-        val sqlType = requireSqlType(sql, setOf("INSERT", "UPDATE"))
+    fun executeInsert(request: StructuredInsertRequest): SqlMutationResult {
+        val table = sanitizeTableName(request.table)
+        require(request.values.isNotEmpty()) { "values 不能为空" }
+
+        val entries = request.values.entries.toList()
+        val columns = entries.joinToString(", ") { sanitizeColumnName(it.key) }
+        val placeholders = List(entries.size) { "?" }.joinToString(", ")
+        val sql = "INSERT INTO $table ($columns) VALUES ($placeholders)"
+        val args = entries.map { it.value }
 
         val jdbcTemplate = loadJdbcTemplate(request.connectionId)
-        val affectedRows = jdbcTemplate.update(sql)
-        return SqlMutationResult(sqlType = sqlType, affectedRows = affectedRows)
+        val affectedRows = jdbcTemplate.update(sql, *args.toTypedArray())
+        return SqlMutationResult(sqlType = "INSERT", affectedRows = affectedRows)
     }
 
-    fun executeDelete(request: ExecuteSqlRequest): SqlMutationResult {
-        val sql = normalizeSql(request.sql)
-        val sqlType = requireSqlType(sql, setOf("DELETE"))
+    fun executeUpdate(request: StructuredUpdateRequest): SqlMutationResult {
+        val table = sanitizeTableName(request.table)
+        require(request.setValues.isNotEmpty()) { "setValues 不能为空" }
+        require(request.filters.isNotEmpty()) { "UPDATE 必须提供 filters，避免误更新全表" }
+
+        val setEntries = request.setValues.entries.toList()
+        val setClause = setEntries.joinToString(", ") { "${sanitizeColumnName(it.key)} = ?" }
+        val whereClause = buildWhereClause(request.filters)
+        val sql = "UPDATE $table SET $setClause${whereClause.sql}"
+
+        val args = setEntries.map { it.value }.toMutableList().apply {
+            addAll(whereClause.args)
+        }
 
         val jdbcTemplate = loadJdbcTemplate(request.connectionId)
-        val affectedRows = jdbcTemplate.update(sql)
-        return SqlMutationResult(sqlType = sqlType, affectedRows = affectedRows)
+        val affectedRows = jdbcTemplate.update(sql, *args.toTypedArray())
+        return SqlMutationResult(sqlType = "UPDATE", affectedRows = affectedRows)
     }
 
-    fun executeDdl(request: ExecuteSqlRequest): SqlMutationResult {
-        val sql = normalizeSql(request.sql)
-        val sqlType = requireSqlType(sql, setOf("CREATE", "ALTER", "DROP", "TRUNCATE"))
+    fun executeDelete(request: StructuredDeleteRequest): SqlMutationResult {
+        val table = sanitizeTableName(request.table)
+        require(request.filters.isNotEmpty()) { "DELETE 必须提供 filters，避免误删全表" }
+
+        val whereClause = buildWhereClause(request.filters)
+        val sql = "DELETE FROM $table${whereClause.sql}"
+
+        val jdbcTemplate = loadJdbcTemplate(request.connectionId)
+        val affectedRows = jdbcTemplate.update(sql, *whereClause.args.toTypedArray())
+        return SqlMutationResult(sqlType = "DELETE", affectedRows = affectedRows)
+    }
+
+    fun executeDdl(request: StructuredDdlRequest): SqlMutationResult {
+        val sqlType = request.action.trim().uppercase(Locale.ROOT)
+        val table = sanitizeTableName(request.table)
+
+        val sql = when (sqlType) {
+            "CREATE" -> buildCreateTableSql(table, request.columns)
+            "DROP" -> "DROP TABLE $table"
+            "TRUNCATE" -> "TRUNCATE TABLE $table"
+            else -> throw IllegalArgumentException("结构化 DDL 当前仅支持 CREATE / DROP / TRUNCATE")
+        }
 
         val jdbcTemplate = loadJdbcTemplate(request.connectionId)
         val affectedRows = jdbcTemplate.update(sql)
@@ -122,6 +192,142 @@ class DataSourceService(
         require(sql.isNotBlank()) { "sql 不能为空" }
         return sql.trim()
     }
+
+    // 仅允许字母、数字、下划线和 schema.table 形式，避免标识符注入。
+    private fun sanitizeTableName(table: String): String {
+        val value = table.trim()
+        val segmentPattern = Regex("^[A-Za-z_][A-Za-z0-9_]*$")
+        require(value.isNotBlank()) { "table 不能为空" }
+        val segments = value.split(".")
+        require(segments.all { segmentPattern.matches(it) }) { "非法表名: $table" }
+        return value
+    }
+
+    // 字段名只允许常规标识符；保留 * 用于查询全部列。
+    private fun sanitizeColumnName(column: String): String {
+        val value = column.trim()
+        if (value == "*") {
+            return value
+        }
+        val pattern = Regex("^[A-Za-z_][A-Za-z0-9_]*$")
+        require(pattern.matches(value)) { "非法字段名: $column" }
+        return value
+    }
+
+    private fun buildWhereClause(filters: List<SqlFilter>): BuiltSql {
+        if (filters.isEmpty()) {
+            return BuiltSql(sql = "", args = emptyList())
+        }
+
+        val parts = mutableListOf<String>()
+        val args = mutableListOf<Any?>()
+        filters.forEach { filter ->
+            val field = sanitizeColumnName(filter.field)
+            val op = filter.operator.trim().lowercase(Locale.ROOT)
+
+            when (op) {
+                "eq" -> {
+                    parts += "$field = ?"
+                    args += filter.value
+                }
+
+                "ne" -> {
+                    parts += "$field <> ?"
+                    args += filter.value
+                }
+
+                "gt" -> {
+                    parts += "$field > ?"
+                    args += filter.value
+                }
+
+                "gte" -> {
+                    parts += "$field >= ?"
+                    args += filter.value
+                }
+
+                "lt" -> {
+                    parts += "$field < ?"
+                    args += filter.value
+                }
+
+                "lte" -> {
+                    parts += "$field <= ?"
+                    args += filter.value
+                }
+
+                "like" -> {
+                    parts += "$field LIKE ?"
+                    args += filter.value
+                }
+
+                "in" -> {
+                    require(filter.values.isNotEmpty()) { "IN 操作需要 values" }
+                    val placeholders = List(filter.values.size) { "?" }.joinToString(", ")
+                    parts += "$field IN ($placeholders)"
+                    args.addAll(filter.values)
+                }
+
+                "is_null" -> parts += "$field IS NULL"
+                "is_not_null" -> parts += "$field IS NOT NULL"
+                else -> throw IllegalArgumentException("不支持的过滤操作符: ${filter.operator}")
+            }
+        }
+
+        return BuiltSql(sql = " WHERE ${parts.joinToString(" AND ")}", args = args)
+    }
+
+    private fun buildOrderByClause(orderBy: List<SqlOrderBy>): String {
+        if (orderBy.isEmpty()) {
+            return ""
+        }
+
+        val expression = orderBy.joinToString(", ") { item ->
+            val field = sanitizeColumnName(item.field)
+            val direction = item.direction.trim().uppercase(Locale.ROOT)
+            require(direction == "ASC" || direction == "DESC") { "排序方向仅支持 ASC / DESC" }
+            "$field $direction"
+        }
+        return " ORDER BY $expression"
+    }
+
+    private fun buildCreateTableSql(table: String, columns: List<DdlColumn>): String {
+        require(columns.isNotEmpty()) { "CREATE TABLE 需要 columns 定义" }
+
+        val definitions = columns.map { column ->
+            val name = sanitizeColumnName(column.name)
+            val type = sanitizeColumnType(column.type)
+            buildString {
+                append(name)
+                append(" ")
+                append(type)
+                if (!column.nullable) {
+                    append(" NOT NULL")
+                }
+                if (column.primaryKey) {
+                    append(" PRIMARY KEY")
+                }
+                column.defaultValue?.takeIf { it.isNotBlank() }?.let {
+                    append(" DEFAULT ")
+                    append(it)
+                }
+            }
+        }
+
+        return "CREATE TABLE $table (${definitions.joinToString(", ")})"
+    }
+
+    private fun sanitizeColumnType(type: String): String {
+        val value = type.trim()
+        require(value.isNotBlank()) { "列类型不能为空" }
+        require(!value.contains(";")) { "列类型不能包含分号" }
+        return value
+    }
+
+    private data class BuiltSql(
+        val sql: String,
+        val args: List<Any?>,
+    )
 
     private fun toConnectionProfile(request: Connection, dbType: DbType): ConnectionProfile {
         val config = request.config as? JdbcConnectionConfig
