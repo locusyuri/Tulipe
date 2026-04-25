@@ -67,10 +67,19 @@ class DataSourceService(
         return SqlMutationResult(sqlType = sqlType, affectedRows = affectedRows)
     }
 
+    fun executeDdl(request: ExecuteSqlRequest): SqlMutationResult {
+        val sql = normalizeSql(request.sql)
+        val sqlType = requireSqlType(sql, setOf("CREATE", "ALTER", "DROP", "TRUNCATE"))
+
+        val jdbcTemplate = loadJdbcTemplate(request.connectionId)
+        val affectedRows = jdbcTemplate.update(sql)
+        return SqlMutationResult(sqlType = sqlType, affectedRows = affectedRows)
+    }
+
     /**
      * 兼容旧的统一执行入口，方便前端迁移到 query/update/delete 的拆分接口。
      */
-    @Deprecated("Use executeQuery/executeUpdate/executeDelete")
+    @Deprecated("Use executeQuery/executeUpdate/executeDelete/executeDdl")
     fun executeSql(request: ExecuteSqlRequest): SqlExecutionResult {
         require(request.sql.isNotBlank()) { "sql 不能为空" }
 
@@ -80,7 +89,9 @@ class DataSourceService(
 
         return when (sqlType) {
             "SELECT" -> SqlExecutionResult(sqlType = sqlType, rows = jdbcTemplate.queryForList(sql))
-            "INSERT", "UPDATE", "DELETE" -> SqlExecutionResult(sqlType = sqlType, affectedRows = jdbcTemplate.update(sql))
+            "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "TRUNCATE" -> {
+                SqlExecutionResult(sqlType = sqlType, affectedRows = jdbcTemplate.update(sql))
+            }
             else -> throw IllegalArgumentException("暂不支持的 SQL 类型: $sqlType")
         }
     }
