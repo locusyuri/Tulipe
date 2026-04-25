@@ -1,5 +1,8 @@
 package org.fleur.srcbackend.pojo.enums
 
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonValue
+
 enum class DbType(
     val code: String,
     val driverClassName: String,
@@ -18,8 +21,13 @@ enum class DbType(
         }
     }
 
+    @JsonValue
+    fun toJsonValue(): String = code
+
     companion object {
         // 统一处理别名，避免在 Service 里散落字符串判断。
+        @JsonCreator
+        @JvmStatic
         fun from(input: String): DbType {
             return when (input.trim().lowercase()) {
                 "mysql" -> MYSQL
@@ -29,4 +37,3 @@ enum class DbType(
         }
     }
 }
-

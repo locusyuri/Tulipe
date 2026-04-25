@@ -51,6 +51,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect") // Kotlin Reflect, 用于反射
     if (!isNativeBuild) {
         implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0") // JVM 调试时使用 Swagger/OpenAPI
+        developmentOnly("org.springframework.boot:spring-boot-devtools") // JVM 开发期热重载，native 打包自动忽略
     }
     testImplementation("org.springframework.boot:spring-boot-starter-test") // Spring Boot Starter Test, 用于测试
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5") // Kotlin Test JUnit5, 用于测试

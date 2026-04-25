@@ -2,7 +2,7 @@ package org.fleur.srcbackend.controller
 
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
-import org.fleur.srcbackend.pojo.entity.Connection
+import org.fleur.srcbackend.pojo.dto.Connection
 import org.fleur.srcbackend.result.TulipeResult
 import org.fleur.srcbackend.service.DataSourceService
 import org.springframework.web.bind.annotation.PostMapping
