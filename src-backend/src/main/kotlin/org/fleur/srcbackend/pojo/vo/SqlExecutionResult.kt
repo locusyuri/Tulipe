@@ -1,7 +1,9 @@
 package org.fleur.srcbackend.pojo.vo
 
 /**
- * SQL 执行结果：查询语句返回 rows，更新语句返回 affectedRows。
+ * 兼容旧 /data-source/execute 入口的结果对象。
+ *
+ * 新接口已拆分为 SqlQueryResult 与 SqlMutationResult。
  */
 data class SqlExecutionResult(
     val sqlType: String,

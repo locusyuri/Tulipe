@@ -1,15 +1,17 @@
 package org.fleur.srcbackend.service
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.fleur.srcbackend.pojo.dto.ExecuteSqlRequest
-import org.fleur.srcbackend.pojo.vo.SqlExecutionResult
+import org.fleur.srcbackend.pojo.entity.Connection
 import org.fleur.srcbackend.pojo.entity.ConnectionProfile
 import org.fleur.srcbackend.pojo.entity.JdbcConnectionConfig
 import org.fleur.srcbackend.pojo.entity.MysqlConnectionConfig
-import org.fleur.srcbackend.pojo.entity.Connection
 import org.fleur.srcbackend.pojo.entity.PostgreSqlConnectionConfig
 import org.fleur.srcbackend.pojo.enums.DbType
+import org.fleur.srcbackend.pojo.vo.SqlExecutionResult
+import org.fleur.srcbackend.pojo.vo.SqlMutationResult
+import org.fleur.srcbackend.pojo.vo.SqlQueryResult
 import org.fleur.srcbackend.repository.ConnectionProfileRepository
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 
@@ -38,28 +40,47 @@ class DataSourceService(
         return connectionProfileRepository.save(profile)
     }
 
+    fun executeQuery(request: ExecuteSqlRequest): SqlQueryResult {
+        val sql = normalizeSql(request.sql)
+        requireSqlType(sql, setOf("SELECT"))
+
+        val jdbcTemplate = loadJdbcTemplate(request.connectionId)
+        val rows = jdbcTemplate.queryForList(sql)
+        return SqlQueryResult(rows = rows)
+    }
+
+    fun executeUpdate(request: ExecuteSqlRequest): SqlMutationResult {
+        val sql = normalizeSql(request.sql)
+        val sqlType = requireSqlType(sql, setOf("INSERT", "UPDATE"))
+
+        val jdbcTemplate = loadJdbcTemplate(request.connectionId)
+        val affectedRows = jdbcTemplate.update(sql)
+        return SqlMutationResult(sqlType = sqlType, affectedRows = affectedRows)
+    }
+
+    fun executeDelete(request: ExecuteSqlRequest): SqlMutationResult {
+        val sql = normalizeSql(request.sql)
+        val sqlType = requireSqlType(sql, setOf("DELETE"))
+
+        val jdbcTemplate = loadJdbcTemplate(request.connectionId)
+        val affectedRows = jdbcTemplate.update(sql)
+        return SqlMutationResult(sqlType = sqlType, affectedRows = affectedRows)
+    }
+
+    /**
+     * 兼容旧的统一执行入口，方便前端迁移到 query/update/delete 的拆分接口。
+     */
+    @Deprecated("Use executeQuery/executeUpdate/executeDelete")
     fun executeSql(request: ExecuteSqlRequest): SqlExecutionResult {
         require(request.sql.isNotBlank()) { "sql 不能为空" }
 
-        val profile = connectionProfileRepository.findById(request.connectionId)
-            ?: throw IllegalArgumentException("连接不存在: ${request.connectionId}")
-
-        val sql = request.sql.trim()
+        val sql = normalizeSql(request.sql)
         val sqlType = resolveSqlType(sql)
-        val connection = toConnection(profile)
-        val jdbcTemplate = JdbcTemplate(connectionPoolManager.getOrCreate(connection))
+        val jdbcTemplate = loadJdbcTemplate(request.connectionId)
 
         return when (sqlType) {
-            "SELECT" -> {
-                val rows = jdbcTemplate.queryForList(sql)
-                SqlExecutionResult(sqlType = sqlType, rows = rows)
-            }
-
-            "UPDATE", "INSERT", "DELETE" -> {
-                val affectedRows = jdbcTemplate.update(sql)
-                SqlExecutionResult(sqlType = sqlType, affectedRows = affectedRows)
-            }
-
+            "SELECT" -> SqlExecutionResult(sqlType = sqlType, rows = jdbcTemplate.queryForList(sql))
+            "INSERT", "UPDATE", "DELETE" -> SqlExecutionResult(sqlType = sqlType, affectedRows = jdbcTemplate.update(sql))
             else -> throw IllegalArgumentException("暂不支持的 SQL 类型: $sqlType")
         }
     }
@@ -67,6 +88,28 @@ class DataSourceService(
     // 通过首个关键字识别语句类型，首版仅开放常用读写语句。
     private fun resolveSqlType(sql: String): String {
         return sql.substringBefore(" ").uppercase()
+    }
+
+    // 校验 SQL 类型是否命中当前接口允许的范围。
+    private fun requireSqlType(sql: String, allowedTypes: Set<String>): String {
+        val sqlType = resolveSqlType(sql)
+        require(sqlType in allowedTypes) {
+            "当前接口不支持的 SQL 类型: $sqlType，允许类型: ${allowedTypes.joinToString(", ")}"
+        }
+        return sqlType
+    }
+
+    // 统一按 connectionId 取出连接配置并创建 JdbcTemplate，避免各接口重复查库和拼接连接池。
+    private fun loadJdbcTemplate(connectionId: Long): JdbcTemplate {
+        val profile = connectionProfileRepository.findById(connectionId)
+            ?: throw IllegalArgumentException("连接不存在: $connectionId")
+        val connection = toConnection(profile)
+        return JdbcTemplate(connectionPoolManager.getOrCreate(connection))
+    }
+
+    private fun normalizeSql(sql: String): String {
+        require(sql.isNotBlank()) { "sql 不能为空" }
+        return sql.trim()
     }
 
     private fun toConnectionProfile(request: Connection, dbType: DbType): ConnectionProfile {
