@@ -19,12 +19,11 @@
 			:is-switch-dropdown-open="isSwitchDropdownOpen"
 			@edit-connection="isEditModalOpen = true"
 			@toggle-switch-dropdown="isSwitchDropdownOpen = !isSwitchDropdownOpen"
-			@switch-connection="switchConnection"
-		/>
+			@switch-connection="switchConnection" />
 
-		<!-- Workspace 组件：主工作区 -->
-		<!-- 包含左侧数据库列表、中间对象导航、右侧数据表格和详情面板 -->
-		<Workspace
+		<!-- 动态工作区组件：根据数据库类型渲染不同的工作区 -->
+		<component
+			:is="currentAdapter.getMainPanel()"
 			:object-nav-width="objectNavWidth"
 			:details-panel-width="detailsPanelWidth"
 			:active-nav-tab="activeNavTab"
@@ -38,15 +37,13 @@
 			@select-nav-tab="selectNavTab"
 			@toggle-more-tabs="isMoreNavTabsOpen = !isMoreNavTabsOpen"
 			@move-tab="moveTab"
-			@start-resizing="startResizing"
-		/>
+			@start-resizing="startResizing" />
 
 		<!-- EditConnectionModal 组件：编辑连接弹窗 -->
 		<!-- 仅当 isEditModalOpen 为 true 时渲染，用于编辑数据库连接信息 -->
 		<EditConnectionModal
 			v-if="isEditModalOpen"
-			@close="isEditModalOpen = false"
-		/>
+			@close="isEditModalOpen = false" />
 	</div>
 </template>
 
@@ -59,14 +56,24 @@
  */
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import Header from "./components/Header.vue"; // 顶部状态栏组件
-import Workspace from "./components/Workspace.vue"; // 主工作区组件
 import EditConnectionModal from "./components/EditConnectionModal.vue"; // 编辑连接弹窗组件
+import { adapterRegistry } from "./adapters";
 
 // ==================== 模态框状态 ====================
 // isEditModalOpen: 控制编辑连接弹窗的显示/隐藏
 const isEditModalOpen = ref(false);
 // isSwitchDropdownOpen: 控制连接切换下拉菜单的显示/隐藏
 const isSwitchDropdownOpen = ref(false);
+
+// ==================== 数据库类型状态 ====================
+// currentDbType: 当前连接的数据库类型，默认为 mysql
+const currentDbType = ref("mysql");
+
+// ==================== 计算属性 ====================
+// currentAdapter: 根据当前数据库类型获取对应的适配器
+const currentAdapter = computed(() => {
+	return adapterRegistry.getOrDefault(currentDbType.value);
+});
 
 // ==================== 面板宽度状态（用于拖拽调整） ====================
 // objectNavWidth: 中间对象导航面板的宽度（默认 280px）
@@ -222,10 +229,12 @@ const openTabs = ref([
 /**
  * switchConnection: 切换数据库连接
  * @param conn - 要切换到的连接对象
- * 功能：输出切换日志，关闭连接切换下拉菜单
+ * 功能：输出切换日志，关闭连接切换下拉菜单，更新数据库类型
  */
 function switchConnection(conn: any) {
 	console.log("Switching to", conn.name);
+	// 更新当前数据库类型，默认为 mysql
+	currentDbType.value = conn.dbType || "mysql";
 	isSwitchDropdownOpen.value = false;
 }
 
