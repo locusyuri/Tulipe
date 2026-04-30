@@ -4,10 +4,10 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import jakarta.annotation.PreDestroy
 import org.fleur.srcbackend.config.ConnectionPoolProperties
-import org.fleur.srcbackend.pojo.entity.Connection
-import org.fleur.srcbackend.pojo.entity.JdbcConnectionConfig
-import org.fleur.srcbackend.pojo.entity.MysqlConnectionConfig
-import org.fleur.srcbackend.pojo.entity.PostgreSqlConnectionConfig
+import org.fleur.srcbackend.pojo.dto.Connection
+import org.fleur.srcbackend.pojo.dto.JdbcConnectionConfig
+import org.fleur.srcbackend.pojo.dto.MysqlConnectionConfig
+import org.fleur.srcbackend.pojo.dto.PostgreSqlConnectionConfig
 import org.fleur.srcbackend.pojo.enums.DbType
 import org.springframework.stereotype.Component
 import java.security.MessageDigest
@@ -29,14 +29,9 @@ class ConnectionPoolManager(
     }
 
     private fun createDataSource(request: Connection): HikariDataSource {
-        val dbType = DbType.from(request.dbType)
         val config = request.config as? JdbcConnectionConfig
             ?: throw IllegalArgumentException("当前仅支持 JDBC 连接配置")
-
-        val resolvedDbType = DbType.from(config.type)
-        require(dbType == resolvedDbType) {
-            "dbType 与 config.type 不一致: ${request.dbType} / ${config.type}"
-        }
+        val dbType = config.type
 
         val jdbcUrl = when (dbType) {
             DbType.MYSQL -> {
@@ -100,5 +95,3 @@ class ConnectionPoolManager(
         dataSourceCache.clear()
     }
 }
-
-

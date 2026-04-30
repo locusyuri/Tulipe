@@ -2,7 +2,7 @@ package org.fleur.srcbackend.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.fleur.srcbackend.pojo.dto.DdlColumn
-import org.fleur.srcbackend.pojo.dto.ExecuteSqlRequest
+import org.fleur.srcbackend.pojo.dto.ExecuteSqlReq
 import org.fleur.srcbackend.pojo.dto.SqlFilter
 import org.fleur.srcbackend.pojo.dto.SqlOrderBy
 import org.fleur.srcbackend.pojo.dto.StructuredDdlRequest
@@ -10,11 +10,11 @@ import org.fleur.srcbackend.pojo.dto.StructuredDeleteRequest
 import org.fleur.srcbackend.pojo.dto.StructuredInsertRequest
 import org.fleur.srcbackend.pojo.dto.StructuredQueryRequest
 import org.fleur.srcbackend.pojo.dto.StructuredUpdateRequest
-import org.fleur.srcbackend.pojo.entity.Connection
+import org.fleur.srcbackend.pojo.dto.Connection
 import org.fleur.srcbackend.pojo.entity.ConnectionProfile
-import org.fleur.srcbackend.pojo.entity.JdbcConnectionConfig
-import org.fleur.srcbackend.pojo.entity.MysqlConnectionConfig
-import org.fleur.srcbackend.pojo.entity.PostgreSqlConnectionConfig
+import org.fleur.srcbackend.pojo.dto.JdbcConnectionConfig
+import org.fleur.srcbackend.pojo.dto.MysqlConnectionConfig
+import org.fleur.srcbackend.pojo.dto.PostgreSqlConnectionConfig
 import org.fleur.srcbackend.pojo.enums.DbType
 import org.fleur.srcbackend.pojo.vo.SqlExecutionResult
 import org.fleur.srcbackend.pojo.vo.SqlMutationResult
@@ -32,12 +32,8 @@ class DataSourceService(
 ) {
 
     fun connect(request: Connection): Long {
-        // 外层 dbType 与内层 config.type 必须一致，避免请求语义冲突。
-        val outerDbType = DbType.from(request.dbType)
-        val innerDbType = DbType.from(request.config.type)
-        require(outerDbType == innerDbType) {
-            "dbType 与 config.type 不一致: ${request.dbType} / ${request.config.type}"
-        }
+        // 连接类型统一以 config.type 为准，避免重复字段带来的不一致问题。
+        val dbType = request.config.type
 
         val jdbcTemplate = JdbcTemplate(connectionPoolManager.getOrCreate(request))
         // 用最小探活 SQL 验证连接可用性。
@@ -45,7 +41,7 @@ class DataSourceService(
         require(ok == 1) { "连接测试失败" }
 
         // 连接校验通过后立即落库，便于后续通过 connectionId 进行管理和执行。
-        val profile = toConnectionProfile(request, outerDbType)
+        val profile = toConnectionProfile(request, dbType)
         return connectionProfileRepository.save(profile)
     }
 
@@ -150,7 +146,7 @@ class DataSourceService(
      * 兼容旧的统一执行入口，方便前端迁移到 query/update/delete 的拆分接口。
      */
     @Deprecated("Use executeQuery/executeUpdate/executeDelete/executeDdl")
-    fun executeSql(request: ExecuteSqlRequest): SqlExecutionResult {
+    fun executeSql(request: ExecuteSqlReq): SqlExecutionResult {
         require(request.sql.isNotBlank()) { "sql 不能为空" }
 
         val sql = normalizeSql(request.sql)
@@ -389,7 +385,6 @@ class DataSourceService(
         return Connection(
             name = profile.profileName,
             group = group,
-            dbType = dbType.code,
             config = config,
         )
     }

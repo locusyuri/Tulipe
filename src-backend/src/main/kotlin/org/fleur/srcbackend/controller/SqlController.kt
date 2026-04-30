@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.fleur.srcbackend.pojo.dto.StructuredDdlRequest
 import org.fleur.srcbackend.pojo.dto.StructuredDeleteRequest
-import org.fleur.srcbackend.pojo.dto.ExecuteSqlRequest
+import org.fleur.srcbackend.pojo.dto.ExecuteSqlReq
 import org.fleur.srcbackend.pojo.dto.StructuredInsertRequest
 import org.fleur.srcbackend.pojo.dto.StructuredQueryRequest
 import org.fleur.srcbackend.pojo.dto.StructuredUpdateRequest
@@ -70,7 +70,7 @@ class SqlController(
     // 旧统一执行入口保留作兼容，前端迁移期间可继续调用。
     @Deprecated("Use /query, /insert, /update, /delete, /ddl")
     @Suppress("DEPRECATION")
-    fun executeSql(@RequestBody request: ExecuteSqlRequest): TulipeResult<SqlExecutionResult> {
+    fun executeSql(@RequestBody request: ExecuteSqlReq): TulipeResult<SqlExecutionResult> {
         val result = dataSourceService.executeSql(request)
         return TulipeResult.success(result)
     }
